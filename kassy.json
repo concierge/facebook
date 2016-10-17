@@ -1,0 +1,11 @@
+{
+  "name": "facebook",
+  "version": 4.0,
+  "startup": "facebook.js",
+  "type": "integration",
+  "config": [
+    [ "commandPrefix", "The default prefix for each command.", "/" ],
+    [ "username", "Username of the bot account.", "" ],
+    [ "password", "Password of the bot account.", "" ]
+  ]
+}
