@@ -124,8 +124,7 @@ exports.start = function(callback) {
         var stopListening = api.listen(function(err, event) {
             if (err) {
                 stopListening();
-                console.error(err);
-                process.exit(-1);
+                throw new Error(err);
             }
 
             switch (event.type) {
