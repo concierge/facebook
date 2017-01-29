@@ -1,6 +1,6 @@
 {
   "name": "facebook",
-  "version": 4.0,
+  "version": 4.1,
   "startup": "facebook.js",
   "type": "integration",
   "config": [
