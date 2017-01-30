@@ -1,19 +1,18 @@
-const fb = require('facebook-chat-api'),
-    fs = require('fs');
-
-let stopListeningMethod = null,
+var fb = require('facebook-chat-api'),
+    fs = require('fs'),
+    stopListeningMethod = null,
     platform = null,
     endTyping = null,
     platformApi = null,
     unknownIter = 1,
     threadInfo = {};
 
-const getSenderInfo = (ids, api, event, finished) => {
-    const callback = (err, info) => {
+var getSenderInfo = function (ids, api, event, finished) {
+    var callback = function(err, info) {
         if (err) {
             return finished('<Unknown User ' + unknownIter++ + '>');
         }
-        for (let id in info) {
+        for (var id in info) {
             threadInfo[event.threadID][id] = {
                 name: info[id].name,
                 email: 'unknown@foo.bar'
@@ -24,14 +23,14 @@ const getSenderInfo = (ids, api, event, finished) => {
     api.getUserInfo(ids, callback);
 };
 
-const getSenderName = (api, event, finished) => {
+var getSenderName = function(api, event, finished) {
     if (threadInfo[event.threadID] && threadInfo[event.threadID][event.senderID]) {
         return finished(threadInfo[event.threadID][event.senderID].name);
     }
 
     if (!threadInfo[event.threadID]) {
         threadInfo[event.threadID] = {};
-        api.getThreadInfo(event.threadID, (err, info) => {
+        api.getThreadInfo(event.threadID, function(err, info) {
             if (err) {
                 return finished('<Unknown User ' + unknownIter++ + '>');
             }
@@ -43,86 +42,86 @@ const getSenderName = (api, event, finished) => {
     }
 };
 
-const stopTyping = () => {
+var stopTyping = function() {
     if (endTyping) {
         endTyping();
         endTyping = null;
     }
 };
 
-class FacebookIntegration extends shim {
-    sendMessage (message, thread) {
-        stopTyping();
-        if (!thread) {
-            throw new Error('A thread ID must be specified.');
-        }
-        api.sendMessage({body:message}, thread);
-    }
-    
-    sendUrl (url, thread) {
-        stopTyping();
-        api.sendMessage({body: url, url: url}, thread);
-    }
-    
-    sendImage (type, image, description, thread) {
-        stopTyping();
-        switch (type) {
-        case 'url':
-            api.sendMessage({body: description, url: image}, thread, err => {
-                if (err) {
-                    api.sendMessage(`${description} ${image}`, thread);
-                }
-            });
-            break;
-        case 'file':
-            api.sendMessage({body: description, attachment: fs.createReadStream(image)}, thread);
-            break;
-        default:
-            api.sendMessage(description, thread);
-            api.sendMessage(image, thread);
-            break;
-        }
-    }
-    
-    sendTyping (thread) {
-        stopTyping();
-        api.sendTypingIndicator(thread, (err, end) => {
-            if (!err) {
-                endTyping = end;
-            }
-        });
-    }
-    
-    setTitle (title, thread) {
-        stopTyping();
-        api.setTitle(title, thread);
-    }
-    
-    getUsers (thread) {
-        return threadInfo[thread];
-    }
-};
-
-exports.getApi = () => {
+exports.getApi = function() {
     return platform;
 };
 
-exports.start = callback => {
-    fb({email: exports.config.username, password: exports.config.password}, (err, api) => {
+exports.start = function(callback) {
+    fb({email: this.config.username, password: this.config.password}, function (err, api) {
         if (err) {
             console.error(err);
             throw new Error(err);
         }
 
-        api.setOptions({
-            listenEvents: true,
-            logLevel: !console.isDebug() ? 'silent' : void(0)
-        });
-        
+        var options = {
+            listenEvents: true
+        };
+        if (!console.isDebug()) {
+            options.logLevel = 'silent';
+        }
+        api.setOptions(options);
         platformApi = api;
-        platform = new PlatformIntegration(exports.config.commandPrefix);
 
-        const stopListening = api.listen((err, event) => {
+        platform = shim.createIntegration({
+            commandPrefix: exports.config.commandPrefix,
+            sendMessage: function(message, thread) {
+                stopTyping();
+                if (!thread) {
+                    throw new Error('A thread ID must be specified.');
+                }
+                api.sendMessage({body:message}, thread);
+            },
+            sendUrl: function(url, thread) {
+                stopTyping();
+                api.sendMessage({body: url, url: url}, thread);
+            },
+            sendImage: function(type, image, description, thread) {
+                stopTyping();
+                switch (type) {
+                case 'url':
+                    api.sendMessage({body: description, url: image}, thread, function(err) {
+                        if (err) {
+                            api.sendMessage(description + ' ' + image, thread);
+                        }
+                    });
+                    break;
+                case 'file':
+                    api.sendMessage({body: description, attachment: fs.createReadStream(image)}, thread);
+                    break;
+                default:
+                    api.sendMessage(description, thread);
+                    api.sendMessage(image, thread);
+                    break;
+                }
+            },
+            sendFile: function () {
+                this.sendImage.apply(this, arguments);
+            },
+            sendTyping: function(thread) {
+                stopTyping();
+                api.sendTypingIndicator(thread, function(err, end) {
+                    if (!err) {
+                        endTyping = end;
+                    }
+                });
+            },
+            setTitle: function(title, thread) {
+                stopTyping();
+                api.setTitle(title, thread);
+            },
+            getUsers: function(thread) {
+                return threadInfo[thread];
+            }
+        });
+
+        var stopListening = api.listen(function(err, event) {
             if (err) {
                 stopListening();
                 throw new Error(err);
@@ -130,17 +129,16 @@ exports.start = callback => {
 
             switch (event.type) {
             case 'message':
-                getSenderName(api, event, name => {
-                    const data = shim.createEvent(event.threadID, event.senderID, name, event.body + '');
+                getSenderName(api, event, function(name) {
+                    var data = shim.createEvent(event.threadID, event.senderID, name, event.body + '');
                     callback(platform, data);
                 });
                 break;
             case 'event':
-            let usrs;
                 switch (event.logMessageType) {
                 case 'log:unsubscribe':
-                    usrs = event.logMessageData.removed_participants;
-                    for (let i = 0; i < usrs.length; i++) {
+                    var usrs = event.logMessageData.removed_participants;
+                    for (var i = 0; i < usrs.length; i++) {
                         usrs[i] = usrs[i].split(':')[1];
                         if (threadInfo[event.threadID] && threadInfo[event.threadID][usrs[i]]) {
                             delete threadInfo[event.threadID][usrs[i]];
@@ -149,30 +147,26 @@ exports.start = callback => {
                     break;
                 case 'log:subscribe':
                     usrs = event.logMessageData.added_participants;
-                    for (let i = 0; i < usrs.length; i++) {
+                    for (var i = 0; i < usrs.length; i++) {
                         usrs[i] = usrs[i].split(':')[1];
                     }
-                    getSenderInfo(usrs, api, event, () => {});
+                    getSenderInfo(usrs, api, event, function(){});
                     break;
                 }
                 break;
             }
         });
 
-        stopListeningMethod = () => {
+        stopListeningMethod = function () {
             stopListening();
             api.logout();
         };
     });
 };
 
-exports.stop = () => {
+exports.stop = function() {
     stopTyping();
+    stopListeningMethod();
+    platformApi.logout();
     platform = null;
-    if (stopListeningMethod) {
-        stopListeningMethod();
-        stopListeningMethod = null;
-    }
-    platformApi = null;
-    threadInfo = {};
 };
