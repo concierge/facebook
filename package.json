@@ -1,0 +1,17 @@
+{
+  "name": "facebook",
+  "version": "4.2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/concierge/facebook.git"
+  },
+  "author": "Matthew Knox",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/concierge/facebook/issues"
+  },
+  "homepage": "https://github.com/concierge/facebook#readme",
+  "dependencies": {
+    "facebook-chat-api": "github:schmavery/facebook-chat-api"
+  }
+}
