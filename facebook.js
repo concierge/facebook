@@ -201,9 +201,11 @@ class FacebookIntegration extends EventEmitter {
             this._stopListeningMethod();
             this._stopListeningMethod = null;
         }
-        this._integrationApi._stopTyping();
-        this._integrationApi._facebookLogout();
-        this._integrationApi = null;
+        if (this._integrationApi) {
+            this._integrationApi._stopTyping();
+            this._integrationApi._facebookLogout();
+            this._integrationApi = null;
+        }
     }
 }
 
