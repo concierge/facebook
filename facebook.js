@@ -153,31 +153,34 @@ class FacebookIntegration extends EventEmitter {
                         break;
                     }
                     case 'event':
-                        switch (event.logMessageType) {
-                            case 'log:unsubscribe':
-                            {
-                                const usrs = event.logMessageData.removed_participants,
-                                    threadInfo = this._integrationApi.getUsers();
-                                for (let i = 0; i < usrs.length; i++) {
-                                    usrs[i] = usrs[i].split(':')[1];
-                                    if (threadInfo[event.threadID] && threadInfo[event.threadID][usrs[i]]) {
-                                        delete threadInfo[event.threadID][usrs[i]];
+                        try {
+                            switch (event.logMessageType) {
+                                case 'log:unsubscribe':
+                                {
+                                    const usr = event.logMessageData.leftParticipantFbId.split(':')[1],
+                                        threadInfo = this._integrationApi.getUsers();
+                                    if (threadInfo[event.threadID] && threadInfo[event.threadID][usr]) {
+                                        delete threadInfo[event.threadID][usr];
                                     }
+                                    break;
                                 }
-                                break;
-                            }
-                            case 'log:subscribe':
-                            {
-                                const usrs = event.logMessageData.added_participants;
-                                for (let i = 0; i < usrs.length; i++) {
-                                    usrs[i] = usrs[i].split(':')[1];
+                                case 'log:subscribe':
+                                {
+                                    const usrs = event.logMessageData.addedParticipants;
+                                    for (let i = 0; i < usrs.length; i++) {
+                                        usrs[i] = usrs[i].split(':')[1];
+                                    }
+                                    this._getSenderInfo(usrs, api, event, () => {});
+                                    break;
                                 }
-                                this._getSenderInfo(usrs, api, event, () => {});
-                                break;
+                                default:
+                                    LOG.silly(`Event '${event.logMessageType}' was unhandled.`);
+                                    break;
                             }
-                            default:
-                                LOG.silly(`Event '${event.logMessageType}' was unhandled.`);
-                                break;
+                        }
+                        catch (e) {
+                            LOG.error('Error while listening for facebook user events.');
+                            LOG.critical(e);
                         }
                         break;
                     case 'read_receipt':
