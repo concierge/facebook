@@ -126,7 +126,7 @@ class FacebookIntegration extends EventEmitter {
     }
 
     start (callback) {
-        fb({email: this.config.username, password: this.config.password}, (err, api) => {
+        fb({email: this.config.username, password: this.config.password, forceLogin: true}, (err, api) => {
             if (err) {
                 LOG.error(err);
                 throw new Error(err);
